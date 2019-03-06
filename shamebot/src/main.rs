@@ -1,5 +1,10 @@
 extern crate slack;
+extern crate rand;
+
 use slack::{Event, RtmClient, Message};
+use rand::Rng;
+use rand::distributions::{Distribution, Uniform};
+
 
 struct Shamebot;
 
@@ -15,8 +20,15 @@ impl slack::EventHandler for Shamebot {
                         let user = prev_message.user.unwrap();
                         let text = prev_message.text.unwrap();
                         println!("msg deleted: {:?}, {:?}, {:?})", channel, user, text);
-                        let to_send = ":eyes:";
-                        let _ = cli.sender().send_message(&channel, &to_send);
+
+                        let mut rng = rand::thread_rng();
+                        let dist = Uniform::from(0.0..1.0);
+                        let roll = dist.sample(&mut rng);
+                        if roll < 0.25 {
+                            let to_send = ":eyes:";
+                            let _ = cli.sender().send_message(&channel, &to_send);
+                        }
+
                     }
                     _ => {}
                 }

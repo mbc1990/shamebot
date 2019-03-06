@@ -6,3 +6,4 @@ edition = "2018"
 
 [dependencies]
 slack = "0.22.0"
+rand = "0.6.5"
