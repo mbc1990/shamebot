@@ -15,9 +15,7 @@ impl slack::EventHandler for Shamebot {
                         let user = prev_message.user.unwrap();
                         let text = prev_message.text.unwrap();
                         println!("msg deleted: {:?}, {:?}, {:?})", channel, user, text);
-                        let mut to_send = ":eyes: <@".to_string();
-                        to_send.push_str(&user);
-                        to_send.push_str(&">".to_string());
+                        let to_send = ":eyes:";
                         let _ = cli.sender().send_message(&channel, &to_send);
                     }
                     _ => {}
