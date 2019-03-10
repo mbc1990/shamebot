@@ -17,6 +17,9 @@ use std::fs;
 use std::time::{Duration, SystemTime};
 use std::io::BufReader;
 
+const EYES: f32 = 0.95;
+const EYES_NAME: f32 = 0.50;
+const EYES_NAME_MESSAGE: f32 = 0.005;
 
 pub fn path_exists(path: &str) -> bool {
     fs::metadata(path).is_ok()
@@ -85,22 +88,32 @@ impl slack::EventHandler for Shamebot {
                         let user = prev_message.user.unwrap();
                         let text = prev_message.text.unwrap();
                         println!("msg deleted: {:?}, {:?}, {:?})", channel, user, text);
-
-                        // TODO: Use into API
                         let num_deleted = match self.deletes_by_user.get(&user) {
                             Some(count) => count.to_owned(),
                             None => 0
                         };
-                        self.deletes_by_user.insert(user, num_deleted + 1);
-                        self.save_counts();
 
                         let mut rng = rand::thread_rng();
                         let dist = Uniform::from(0.0..1.0);
                         let roll = dist.sample(&mut rng);
-                        if roll < 0.25 {
+
+                        if roll < EYES_NAME_MESSAGE {
+                            let mut to_send = ":eyes: <@".to_string();
+                            to_send.push_str(&user);
+                            to_send.push_str(&"> ".to_string());
+                            to_send.push_str(&text);
+                            let _ = cli.sender().send_message(&channel, &to_send);
+                        } else if roll  < EYES_NAME {
+                            let mut to_send = ":eyes: <@".to_string();
+                            to_send.push_str(&user);
+                            to_send.push_str(&">".to_string());
+                            let _ = cli.sender().send_message(&channel, &to_send);
+                        } else if roll < EYES {
                             let to_send = ":eyes:";
                             let _ = cli.sender().send_message(&channel, &to_send);
                         }
+                        self.deletes_by_user.insert(user, num_deleted + 1);
+                        self.save_counts();
                     }
                     _ => {}
                 }
