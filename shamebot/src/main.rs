@@ -15,6 +15,7 @@ use std::fs::OpenOptions;
 use std::io::prelude::*;
 use std::fs;
 use std::time::{Duration, SystemTime};
+use std::io::BufReader;
 
 
 pub fn path_exists(path: &str) -> bool {
@@ -27,6 +28,13 @@ struct Shamebot {
 }
 
 impl Shamebot {
+    fn new() -> Shamebot {
+        let mut shamebot = Shamebot {
+            deletes_by_user: HashMap::new(),
+        };
+        shamebot.load_counts();
+        shamebot
+    }
     fn save_counts(&self) -> std::io::Result<()> {
         if !path_exists(".counts.json") {
             File::create(".counts.json")?;
@@ -41,16 +49,26 @@ impl Shamebot {
         if let Err(e) = writeln!(file, "{}", ser) {
             eprintln!("Couldn't write to file: {}", e);
         }
-        println!("{:?}", ser);
         Ok(())
     }
 
-    // TODO
     fn load_counts(&mut self) -> std::io::Result<()> {
-        
-        let ser = serde_json::to_string(&self.deletes_by_user)?;
-        println!("{:?}", ser);
-        Ok(())
+        if !path_exists(".counts.json") {
+            self.deletes_by_user = HashMap::new();
+            return Ok(());
+        } else {
+            let f = File::open(".counts.json").unwrap();
+            let file = BufReader::new(&f);
+            let mut l: String = "".to_string();
+            for (num, line) in file.lines().enumerate() {
+                l = line.unwrap();
+            }
+            let m: HashMap<String, Value> = serde_json::from_str(&l)?;
+            for (key, value) in m {
+                self.deletes_by_user.insert(key, value.as_i64().unwrap() as i32);
+            }
+            Ok(())
+        }
     }
 }
 
@@ -75,8 +93,6 @@ impl slack::EventHandler for Shamebot {
                         };
                         self.deletes_by_user.insert(user, num_deleted + 1);
                         self.save_counts();
-
-                        println!("Num deleted: {:?}", num_deleted);
 
                         let mut rng = rand::thread_rng();
                         let dist = Uniform::from(0.0..1.0);
@@ -107,10 +123,7 @@ fn main() {
         0 | 1 => panic!("No api key"),
         x => args[x - 1].clone(),
     };
-    let mut handler = Shamebot
-        {
-            deletes_by_user: HashMap::new(),
-        };
+    let mut handler = Shamebot::new();
     let r = RtmClient::login_and_run(&api_key, &mut handler);
     match r {
         Ok(_) => {}
