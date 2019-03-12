@@ -17,9 +17,9 @@ use std::fs;
 use std::time::{Duration, SystemTime};
 use std::io::BufReader;
 
-const EYES: f32 = 0.95;
-const EYES_NAME: f32 = 0.50;
-const EYES_NAME_MESSAGE: f32 = 0.005;
+const EYES: f32 = 0.33;
+const EYES_NAME: f32 = 0.25;
+const EYES_NAME_MESSAGE: f32 = 0.001;
 
 pub fn path_exists(path: &str) -> bool {
     fs::metadata(path).is_ok()
