@@ -26,21 +26,26 @@ pub fn path_exists(path: &str) -> bool {
 }
 
 
-struct Shamebot {
+struct Shamebot<'a> {
     deletes_by_user: HashMap<String, i32>,
+    namespace: &'a String
 }
 
-impl Shamebot {
-    fn new() -> Shamebot {
+impl<'a> Shamebot<'a> {
+    fn new(namespace: &String) -> Shamebot {
         let mut shamebot = Shamebot {
             deletes_by_user: HashMap::new(),
+            namespace
         };
         shamebot.load_counts();
         shamebot
     }
     fn save_counts(&self) -> std::io::Result<()> {
-        if !path_exists(".counts.json") {
-            File::create(".counts.json")?;
+        let mut counts_path = ".counts.".to_string();
+        counts_path.push_str(self.namespace);
+        counts_path.push_str(&".json".to_string());
+        if !path_exists(&counts_path) {
+            File::create(&counts_path)?;
         }
         let mut file = OpenOptions::new()
             .write(true)
@@ -56,11 +61,14 @@ impl Shamebot {
     }
 
     fn load_counts(&mut self) -> std::io::Result<()> {
-        if !path_exists(".counts.json") {
+        let mut counts_path = ".counts.".to_string();
+        counts_path.push_str(self.namespace);
+        counts_path.push_str(&".json".to_string());
+        if !path_exists(&counts_path) {
             self.deletes_by_user = HashMap::new();
             return Ok(());
         } else {
-            let f = File::open(".counts.json").unwrap();
+            let f = File::open(counts_path).unwrap();
             let file = BufReader::new(&f);
             let mut l: String = "".to_string();
             for (num, line) in file.lines().enumerate() {
@@ -77,7 +85,7 @@ impl Shamebot {
 
 
 #[allow(unused_variables)]
-impl slack::EventHandler for Shamebot {
+impl<'a> slack::EventHandler for Shamebot<'a> {
     fn on_event(&mut self, cli: &RtmClient, event: Event) {
         match event {
             Event::Message(msg) => {
@@ -114,9 +122,12 @@ impl slack::EventHandler for Shamebot {
                         }
                         self.deletes_by_user.insert(user, num_deleted + 1);
                         self.save_counts();
-                    }
+                    },
                     _ => {}
                 }
+            },
+            Event::UserTyping {channel, user} => {
+               println!("typing: {:?}, {:?}", channel, user);
             },
             _ => {}
         }
@@ -132,11 +143,9 @@ impl slack::EventHandler for Shamebot {
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
-    let api_key = match args.len() {
-        0 | 1 => panic!("No api key"),
-        x => args[x - 1].clone(),
-    };
-    let mut handler = Shamebot::new();
+    let api_key = args[1].clone();
+    let namespace = args[2].clone();
+    let mut handler = Shamebot::new(&namespace);
     let r = RtmClient::login_and_run(&api_key, &mut handler);
     match r {
         Ok(_) => {}
