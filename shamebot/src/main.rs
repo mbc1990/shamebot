@@ -2,20 +2,7 @@ extern crate slack;
 extern crate rand;
 extern crate serde_json;
 
-
-use slack::{Event, RtmClient, Message};
-use rand::Rng;
-use rand::distributions::{Distribution, Uniform};
-use std::collections::HashMap;
-use serde_json::{Result, Value};
-use std::fs::File;
-use std::io::prelude::*;
-use std::error::*;
-use std::fs::OpenOptions;
-use std::io::prelude::*;
-use std::fs;
-use std::time::{Duration, SystemTime};
-use std::io::BufReader;
+use slack::RtmClient;
 
 use crate::shamebot::Shamebot;
 mod shamebot;

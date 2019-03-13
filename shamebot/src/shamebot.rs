@@ -1,15 +1,11 @@
 use slack::{Event, RtmClient, Message};
-use rand::Rng;
 use rand::distributions::{Distribution, Uniform};
 use std::collections::HashMap;
-use serde_json::{Result, Value};
+use serde_json::Value;
 use std::fs::File;
 use std::io::prelude::*;
-use std::error::*;
 use std::fs::OpenOptions;
-use std::io::prelude::*;
 use std::fs;
-use std::time::{Duration, SystemTime};
 use std::io::BufReader;
 
 // TODO: Move to main and pass to constructor
@@ -33,7 +29,7 @@ impl<'a> Shamebot<'a> {
             deletes_by_user: HashMap::new(),
             namespace
         };
-        shamebot.load_counts();
+        shamebot.load_counts().unwrap();
         shamebot
     }
     fn save_counts(&self) -> std::io::Result<()> {
@@ -67,7 +63,7 @@ impl<'a> Shamebot<'a> {
             let f = File::open(counts_path).unwrap();
             let file = BufReader::new(&f);
             let mut l: String = "".to_string();
-            for (num, line) in file.lines().enumerate() {
+            for (_, line) in file.lines().enumerate() {
                 l = line.unwrap();
             }
             let m: HashMap<String, Value> = serde_json::from_str(&l)?;
@@ -116,7 +112,7 @@ impl<'a> slack::EventHandler for Shamebot<'a> {
                             let _ = cli.sender().send_message(&channel, &to_send);
                         }
                         self.deletes_by_user.insert(user, num_deleted + 1);
-                        self.save_counts();
+                        self.save_counts().unwrap();
                     },
                     _ => {}
                 }
