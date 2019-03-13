@@ -25,7 +25,6 @@ pub fn path_exists(path: &str) -> bool {
     fs::metadata(path).is_ok()
 }
 
-
 struct Shamebot<'a> {
     deletes_by_user: HashMap<String, i32>,
     namespace: &'a String
@@ -50,7 +49,7 @@ impl<'a> Shamebot<'a> {
         let mut file = OpenOptions::new()
             .write(true)
             .append(true)
-            .open(".counts.json")
+            .open(&counts_path)
             .unwrap();
         let ser = serde_json::to_string(&self.deletes_by_user)?;
 
@@ -127,6 +126,7 @@ impl<'a> slack::EventHandler for Shamebot<'a> {
                 }
             },
             Event::UserTyping {channel, user} => {
+                // TODO: Implement this feature next
                println!("typing: {:?}, {:?}", channel, user);
             },
             _ => {}
