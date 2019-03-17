@@ -15,12 +15,21 @@ use rand::prelude::SliceRandom;
 const EYES: f32 = 0.33;
 const EYES_NAME: f32 = 0.25;
 const EYES_NAME_MESSAGE: f32 = 0.001;
-const HESITATION_TIMEOUT_SECS: u64 = 17;
-const HESITATION_COOLDOWN_SECS: u64 = 3;
+const HESITATION_TIMEOUT_SECS: u64 = 18;
+const HESITATION_COOLDOWN_SECS: u64 = 5;
 
 
 pub fn path_exists(path: &str) -> bool {
     fs::metadata(path).is_ok()
+}
+
+
+pub fn construct_string(strs: &[&str]) -> String {
+    let mut ret = String::new();
+    for st in strs.iter() {
+       ret.push_str(st);
+    }
+    ret
 }
 
 pub struct Shamebot<'a> {
@@ -58,9 +67,7 @@ impl<'a> Shamebot<'a> {
         shamebot
     }
     fn save_counts(&self) -> std::io::Result<()> {
-        let mut counts_path = ".counts.".to_string();
-        counts_path.push_str(self.namespace);
-        counts_path.push_str(&".json".to_string());
+        let counts_path = construct_string(&[".counts.", self.namespace, ".json"]);
         if !path_exists(&counts_path) {
             File::create(&counts_path)?;
         }
@@ -78,9 +85,7 @@ impl<'a> Shamebot<'a> {
     }
 
     fn load_counts(&mut self) -> std::io::Result<()> {
-        let mut counts_path = ".counts.".to_string();
-        counts_path.push_str(self.namespace);
-        counts_path.push_str(&".json".to_string());
+        let counts_path = construct_string(&[".counts.", self.namespace, ".json"]);
         if !path_exists(&counts_path) {
             self.deletes_by_user = HashMap::new();
             return Ok(());
@@ -122,18 +127,13 @@ impl<'a> slack::EventHandler for Shamebot<'a> {
                         let roll = dist.sample(&mut rng);
 
                         if roll < EYES_NAME_MESSAGE {
-                            let mut to_send = ":eyes: <@".to_string();
-                            to_send.push_str(&user);
-                            to_send.push_str(&"> ".to_string());
-                            to_send.push_str(&text);
+                            let to_send = construct_string(&[":eyes: <@", &user, "> ", &text]);
                             let _ = cli.sender().send_message(&channel, &to_send);
                         } else if roll  < EYES_NAME {
-                            let mut to_send = ":eyes: <@".to_string();
-                            to_send.push_str(&user);
-                            to_send.push_str(&">".to_string());
+                            let to_send = construct_string(&[":eyes: <@", &user, ">"]);
                             let _ = cli.sender().send_message(&channel, &to_send);
                         } else if roll < EYES {
-                            let to_send = ":eyes:";
+                            let to_send = construct_string(&[":eyes:"]);
                             let _ = cli.sender().send_message(&channel, &to_send);
                         }
                         self.deletes_by_user.insert(user, num_deleted + 1);
@@ -142,9 +142,7 @@ impl<'a> slack::EventHandler for Shamebot<'a> {
                     Message::Standard(msg) => {
                         let channel = msg.channel.unwrap();
                         let user = msg.user.unwrap();
-                        let mut key = channel.to_string();
-                        key.push_str(&"-");
-                        key.push_str(&user);
+                        let key = construct_string(&[&channel, "-", &user]);
                         self.typing_started.remove(&key);
                         self.last_typing.remove(&key);
                     },
@@ -167,20 +165,13 @@ impl<'a> slack::EventHandler for Shamebot<'a> {
                     self.last_typing.remove(&expired.to_string());
                     self.typing_started.remove(&expired.to_string());
                 }
-
-                let mut key = channel.to_string();
-                key.push_str(&"-");
-                key.push_str(&user);
+                let key = construct_string(&[&channel, "-", &user]);
                 if self.typing_started.contains_key(&key) {
                     let typing_started_event = self.typing_started.get(&key).unwrap();
                     if now - typing_started_event > HESITATION_TIMEOUT_SECS {
-                        let mut to_send = "<@".to_string();
-                        to_send.push_str(&user);
-                        to_send.push_str(&"> ".to_string());
                         let mut rng = rand::thread_rng();
-                        // let msg = rng.choose(&self.hesitation_messages).unwrap();
                         let msg = self.hesitation_messages.choose(&mut rng).unwrap();
-                        to_send.push_str(msg);
+                        let to_send = construct_string(&["<@", &user, "> ", msg]);
                         let _ = cli.sender().send_message(&channel, &to_send);
                         self.typing_started.remove(&key);
                         self.last_typing.remove(&key);
