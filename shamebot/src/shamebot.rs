@@ -7,11 +7,16 @@ use std::io::prelude::*;
 use std::fs::OpenOptions;
 use std::fs;
 use std::io::BufReader;
+use std::time::{SystemTime, UNIX_EPOCH};
+use rand::prelude::SliceRandom;
+
 
 // TODO: Move to main and pass to constructor
 const EYES: f32 = 0.33;
 const EYES_NAME: f32 = 0.25;
 const EYES_NAME_MESSAGE: f32 = 0.001;
+const HESITATION_TIMEOUT_SECS: u64 = 7;
+const HESITATION_COOLDOWN_SECS: u64 = 10;
 
 
 pub fn path_exists(path: &str) -> bool {
@@ -20,14 +25,34 @@ pub fn path_exists(path: &str) -> bool {
 
 pub struct Shamebot<'a> {
     deletes_by_user: HashMap<String, i32>,
-    namespace: &'a String
+
+    // channel+user -> When the current typing series started
+    typing_started: HashMap<String, u64>,
+    // channel+user -> The last time the user typed (for cooldown)
+    last_typing: HashMap<String, u64>,
+    namespace: &'a String,
+    hesitation_messages: Vec<&'a str>,
 }
 
 impl<'a> Shamebot<'a> {
     pub fn new(namespace: &String) -> Shamebot {
+        let messages = vec![
+            "spit it out!",
+            "_checks watch_",
+            "this better be worth it",
+            "https://www.typingclub.com/",
+            "if you have something to say, now's the time",
+            "just text me when you're finished",
+            "is this a slack message or are you transcribing infinite jest",
+            "tippity tappity your typing isn't bappity",
+            "are your fingers feeling okay?"
+        ];
         let mut shamebot = Shamebot {
             deletes_by_user: HashMap::new(),
-            namespace
+            typing_started: HashMap::new(),
+            last_typing: HashMap::new(),
+            namespace,
+            hesitation_messages: messages,
         };
         shamebot.load_counts().unwrap();
         shamebot
@@ -114,12 +139,58 @@ impl<'a> slack::EventHandler for Shamebot<'a> {
                         self.deletes_by_user.insert(user, num_deleted + 1);
                         self.save_counts().unwrap();
                     },
+                    Message::Standard(msg) => {
+                        let channel = msg.channel.unwrap();
+                        let user = msg.user.unwrap();
+                        let mut key = channel.to_string();
+                        key.push_str(&"-");
+                        key.push_str(&user);
+                        self.typing_started.remove(&key);
+                        self.last_typing.remove(&key);
+                    },
+                    // TODO: On message clear typing_started entry for channel+user
                     _ => {}
                 }
             },
             Event::UserTyping {channel, user} => {
-                // TODO: Implement this feature next
-                println!("typing: {:?}, {:?}", channel, user);
+                let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+                let mut to_remove = Vec::new();
+
+                // First, check everything for cooldown and remove it if it's expired
+                for (k, v) in self.last_typing.iter() {
+                    if now - v > HESITATION_COOLDOWN_SECS {
+                        to_remove.push(k.clone());
+                    }
+                }
+
+                for expired in to_remove.iter() {
+                    self.last_typing.remove(&expired.to_string());
+                    self.typing_started.remove(&expired.to_string());
+                }
+
+                let mut key = channel.to_string();
+                key.push_str(&"-");
+                key.push_str(&user);
+                if self.typing_started.contains_key(&key) {
+                    let typing_started_event = self.typing_started.get(&key).unwrap();
+                    if now - typing_started_event > HESITATION_TIMEOUT_SECS {
+                        let mut to_send = "<@".to_string();
+                        to_send.push_str(&user);
+                        to_send.push_str(&"> ".to_string());
+                        let mut rng = rand::thread_rng();
+                        // let msg = rng.choose(&self.hesitation_messages).unwrap();
+                        let msg = self.hesitation_messages.choose(&mut rng).unwrap();
+                        to_send.push_str(msg);
+                        let _ = cli.sender().send_message(&channel, &to_send);
+                        self.typing_started.remove(&key);
+                        self.last_typing.remove(&key);
+                    }
+                } else {
+                    self.typing_started.insert((&key).to_string(), now);
+                }
+
+                // Update last typing to now
+                self.last_typing.insert((&key).to_string(), now);
             },
             _ => {}
         }
@@ -132,4 +203,3 @@ impl<'a> slack::EventHandler for Shamebot<'a> {
         println!("Shamebot connected");
     }
 }
-
