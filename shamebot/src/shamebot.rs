@@ -15,8 +15,8 @@ use rand::prelude::SliceRandom;
 const EYES: f32 = 0.33;
 const EYES_NAME: f32 = 0.25;
 const EYES_NAME_MESSAGE: f32 = 0.001;
-const HESITATION_TIMEOUT_SECS: u64 = 7;
-const HESITATION_COOLDOWN_SECS: u64 = 10;
+const HESITATION_TIMEOUT_SECS: u64 = 17;
+const HESITATION_COOLDOWN_SECS: u64 = 3;
 
 
 pub fn path_exists(path: &str) -> bool {
